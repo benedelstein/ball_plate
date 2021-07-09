@@ -22,13 +22,13 @@ int numInvalidPoints = 0; // number of consecutive no-touch points. if crosses a
 /////////////////PID CONSTANTS/////////////////
 // TODO: MAY NEED DIFFERENT CONSTANTS FOR X AND Y. 
 // each axis has a different length, so different moment of inertia, etc.
-const double Kp = 1;
-const double Ki = 0;
-const double Kd = 0;
+const double Kpx = .9;
+const double Kix = 0.01; //.1
+const double Kdx = .25; //.25
 
-//const double Kpy = 1;
-//const double Kiy = 0;
-//const double Kdy = 0;
+const double Kpy = .7;
+const double Kiy = .01;
+const double Kdy = .15; //.15
 ///////////////////////////////////////////////
 
 // SERVOS (doesn't need pwm pins)
@@ -36,13 +36,17 @@ const int xServoPin = 6;
 const int yServoPin = 11;
 Servo xServo;
 Servo yServo;
-const int flatXAngle = 90;
-const int flatYAngle = 90;
+const int flatXAngle = 102;
+const int flatYAngle = 80;
 
 // initialize touchscreen
 // resistance across x is 274 ohms (measured)
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, 500);
 
+const int pointsPerCycle = 100;
+float radialVelocity = .1; // .1 rotations per second
+int index = 0;
+float trajectoryUpdateTime, lastTrajectoryUpdateTime;
 
 void setup() {
   Serial.begin(9600); // is this needed at a diff baud?
@@ -52,8 +56,8 @@ void setup() {
   // todo: write the servos to their starting points (flat). determine what the starting points should be
   xServo.write(flatXAngle); // might not be 90
   yServo.write(flatYAngle);
-  delay(2000); // give a few seconds to start up
   time = millis();
+  lastTrajectoryUpdateTime = millis();
 }
 
 void loop() {
@@ -63,21 +67,37 @@ void loop() {
   timePrev = time;
   time = millis();
   float dt = (time - timePrev) / 1000; // get to seconds from milliseconds
+//  Serial.println(time-lastTrajectoryUpdateTime);
+// (1/radialVelocity)/pointsPerCycle
+//  if ((time - lastTrajectoryUpdateTime)/1000 > 3) {
+////    circle(5, index); // set setpoint to circle trajectory
+////    line(10, index);
+////    setpointX = setpointX == 10 ? -10 : 10;
+////    setpointY = 0;
+//    
+//    lastTrajectoryUpdateTime = time;
+//    index++;
+//    if (index > pointsPerCycle) {
+//      index = 0;
+//    }
+//  }
+
+//  Serial.println(setpointX);
   
   // read current position
   // get x and y position of ball on touchscreen
   p = ts.getPoint();
-  // parse out x and y
+
 //  Serial.print("X = "); Serial.print(p.x);
 //  Serial.print("\tY = "); Serial.print(p.y);
 //  Serial.print("\tPressure = "); Serial.println(p.z);
   
   // nothing is touching, discard this point
-  if((p.z == 0)) {
+  if(p.z == 0) {
 //    Serial.println("discarded");
     numValidPoints = 0;
     numInvalidPoints++;
-    Serial.print("invalid points count: "); Serial.println(numInvalidPoints);
+//    Serial.print("invalid points count: "); Serial.println(numInvalidPoints);
   } else {
     numValidPoints++;
     numInvalidPoints = 0; // reset to zero because we have a a valid point now
@@ -110,8 +130,9 @@ void loop() {
     // really just a reading of about ~75mm
     float x = map(p.x, 0, 1024, -82.5, 82.5); // x is 165 mm wide
     float y = map(p.y, 0, 1024, -52.5, 52.5); // y is 105mm wide
-    Serial.print(x); Serial.print("\t");
-    Serial.println(y);
+//    Serial.println(x);
+//    Serial.print("\t");
+//    Serial.println(y);
     // calculate error
     errorX = setpointX - x;
     errorY = setpointY - y;
@@ -119,17 +140,17 @@ void loop() {
   //  Serial.print("y error = "); Serial.println(errorY);
     // calculate x and y motor PID independently ??
     // calculate error and PID output
-    Px = Kp*errorX;
-    Ix = Ix + Ki*errorX*dt;
-    Dx = Kd*(errorX-previousErrorX)/dt;
+    Px = Kpx*errorX;
+    Ix = Ix + Kix*errorX*dt;
+    Dx = Kdx*(errorX-previousErrorX)/dt;
     float PIDx = Px+Ix+Dx;
   
-    Py = Kp*errorY;
-    Iy = Iy + Ki*errorY*dt;
-    Dy = Kd*(errorY-previousErrorY)/dt;
+    Py = Kpy*errorY;
+    Iy = Iy + Kiy*errorY*dt;
+    Dy = Kdy*(errorY-previousErrorY)/dt;
     float PIDy = Py+Iy+Dy;
-  //  Serial.print("PIDx = "); Serial.println(PIDx);
-  //  Serial.print("PIDy = "); Serial.println(PIDy);
+//    Serial.print("PIDx = "); Serial.println(PIDx);
+//    Serial.print("PIDy = "); Serial.println(PIDy);
     
     // transform and output based on PID output
     
@@ -141,19 +162,59 @@ void loop() {
     // same for y
     // map output values to 0-180 or smaller range
     // TODO: WHAT ARE THE INPUT LIMITS?
-    int xOutput = int(map(PIDx, -width/2, width/2, 50, 130));
-    int yOutput = int(map(PIDy, -height/2, height/2, 50, 140));
+    // do I take a linear mapping, or just clip the values?
+    int xOutput = int(round(map(PIDx, -width/2, width/2, -50, 50))); // x needs larger range
+    int yOutput = int(round(map(PIDy, -height/2, height/2, -40, 40)));
+    xOutput = clip(xOutput,-50,50);
+    yOutput = clip(yOutput,-40,40);
     Serial.print("X angle: "); 
     Serial.println(xOutput);
-    Serial.print("Y angle: "); Serial.println(yOutput);
-    // clip the values
-    // TODO: may want to write it as even point +/- whatever the PID was. so if even point is 90 degrees and PID output is 10, write 90+10 to servo
+    Serial.print("Y angle: "); 
+    Serial.println(yOutput);
+
+    // even point +/- whatever the PID was. so if even point is 90 degrees and PID output is 10, write 90+10 to servo
     // TODO: maybe use writeMicroseconds() to get more resolution. 1000-2000 microseconds range corresponds to 0-180
-    xServo.write(xOutput);
-    yServo.write(yOutput);
+    xServo.write(flatXAngle + xOutput);
+    yServo.write(flatYAngle + yOutput);
     
     // set this for the next loop
     previousErrorX = errorX;
     previousErrorY = errorY;
   }
+}
+
+// setpoint draw a circle
+// radius (mm)
+// take an index and number of points, then calculate x and y setpoint based on index and trig
+// so for index 1 and num points = 100, 1/100*360 = angle in degrees. calculate based on that
+// how many indices should there be for a reasonable rotation rate?
+void circle(float radius, int i) {
+    float angle = float(i)/pointsPerCycle * M_PI * 2;
+    setpointX = radius * cos(angle);
+    setpointY = radius * sin(angle);
+}
+
+void line(float length, int i) {
+  if (i < pointsPerCycle/2) {
+    setpointX = index/length/2;
+  } else {
+    setpointX = -index/length/2;
+  }
+  setpointY = 0;
+}
+
+void fourCorners(float sideLength) {
+  // todo
+}
+
+
+// helper
+int clip(int value, int minimum, int maximum) {
+  if (value > maximum) {
+    return maximum;
+  }
+  if (value < minimum) {
+    return minimum;
+  }
+  return value;
 }
