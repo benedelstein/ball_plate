@@ -24,11 +24,11 @@ int numInvalidPoints = 0; // number of consecutive no-touch points. if crosses a
 // each axis has a different length, so different moment of inertia, etc.
 const double Kpx = .55;
 const double Kix = 0.05; //.1
-const double Kdx = .25; //.25
+const double Kdx = .275; //.25
 
-const double Kpy = .4;
-const double Kiy = 0.03;
-const double Kdy = .21; //.15
+const double Kpy = .35;
+const double Kiy = 0.05;
+const double Kdy = .16; //.15
 ///////////////////////////////////////////////
 
 // SERVOS (doesn't need pwm pins)
@@ -36,8 +36,8 @@ const int xServoPin = 6;
 const int yServoPin = 11;
 Servo xServo;
 Servo yServo;
-const int flatXAngle = 105;
-const int flatYAngle = 80;
+const int flatXAngle = 95;
+const int flatYAngle = 88;
 
 // initialize touchscreen
 // resistance across x is 274 ohms (measured)
@@ -49,7 +49,7 @@ int index = 0;
 float trajectoryUpdateTime, lastTrajectoryUpdateTime;
 
 // input smoothing
-const int inputWindowSize = 6;
+const int inputWindowSize = 10;
 float filteredX = 0;
 float filteredY = 0;
 float sumX = 0;
@@ -81,7 +81,6 @@ void loop() {
   float dt = (time - timePrev) / 1000; // get to seconds from milliseconds
 //  Serial.print("dt: "); Serial.println(dt*1000);
 //  Serial.println(time-lastTrajectoryUpdateTime);
-// (1/radialVelocity)/pointsPerCycle
   updateSetpoint();
 
 //  Serial.println(setpointX);
@@ -221,10 +220,10 @@ void loop() {
       int yOutput = int(round(map(PIDy, -height/2, height/2, -40, 40)));
       xOutput = clip(xOutput,-50,50);
       yOutput = clip(yOutput,-40,40);
-  //    Serial.print("X angle: "); 
-  //    Serial.println(xOutput);
-  //    Serial.print("Y angle: "); 
-  //    Serial.println(yOutput);
+//      Serial.print("X angle: "); 
+//      Serial.println(xOutput);
+//      Serial.print("Y angle: "); 
+//      Serial.println(yOutput);
   
       // even point +/- whatever the PID was. so if even point is 90 degrees and PID output is 10, write 90+10 to servo
       // TODO: maybe use writeMicroseconds() to get more resolution. 1000-2000 microseconds range corresponds to 0-180
@@ -268,7 +267,7 @@ int cornerIndex = 1;
 void fourCorners(float l) {
   // todo
   float w = 32;
-  float h = 15;
+  float h = 13;
   switch(cornerIndex) {
     case 1:
       // quad 1
@@ -294,6 +293,8 @@ void fourCorners(float l) {
 
 void updateSetpoint() {
   float dt = (time - lastTrajectoryUpdateTime)/1000;
+  float updateIncrement = 1/radialVelocity/pointsPerCycle;
+
   switch(mode) {
     case 0:
       // center
@@ -302,10 +303,11 @@ void updateSetpoint() {
       break;
     case 1:
       // circle
-      if (dt > 1/radialVelocity/pointsPerCycle) {
+      if (dt > updateIncrement) {
         circle(10, index); // set setpoint to circle trajectory
         lastTrajectoryUpdateTime = time;
-        index++;
+        index+=int(round(dt/updateIncrement)); // often dt is larger than the ideal update time (skipping updates)
+        // bc of this, update index to nearest integer. this avoids artificially lowering the angular velocity.
         if (index > pointsPerCycle) {
           index = 0;
         }
@@ -313,7 +315,7 @@ void updateSetpoint() {
       break;
     case 2:
       // four corners
-      if(dt > 3) {
+      if(dt > 2) {
         fourCorners(30);
         lastTrajectoryUpdateTime = time;
       }
@@ -321,9 +323,9 @@ void updateSetpoint() {
     case 3:
       // ellipse
       if (dt > 1/radialVelocity/pointsPerCycle) {
-        ellipse(15,8, index); // set setpoint to circle trajectory
+        ellipse(15,10, index); // set setpoint to circle trajectory
         lastTrajectoryUpdateTime = time;
-        index++;
+        index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1 
         if (index > pointsPerCycle) {
           index = 0;
         }
