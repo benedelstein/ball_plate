@@ -265,9 +265,8 @@ void line(float length, int i) {
 
 int cornerIndex = 1;
 void fourCorners(float l) {
-  // todo
-  float w = 32;
-  float h = 13;
+  float w = l;
+  float h = l;
   switch(cornerIndex) {
     case 1:
       // quad 1
