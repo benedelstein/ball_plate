@@ -58,7 +58,7 @@ float readingsX[inputWindowSize];
 float readingsY[inputWindowSize];
 
 
-int mode = 2;
+int mode = 4;
 
 void setup() {
   Serial.begin(9600); // is this needed at a diff baud?
@@ -254,6 +254,33 @@ void ellipse(float a, float b, int i) {
     setpointY = b * sin(angle);
 }
 
+void zigZag(float xAmplitude, float yAmplitude, int i, int zigs) {
+  // Continuous zig-zag: sweep from bottom to top, then back down.
+  // The ball travels edge-to-edge in x while steadily moving along y.
+  float t = float(i) / pointsPerCycle;
+  if (t > 1) {
+    t = 1;
+  }
+
+  bool movingUp = t < 0.5;
+  float pathT = movingUp ? t * 2 : (t - 0.5) * 2; // 0..1 for each half-cycle
+
+  setpointY = movingUp
+    ? -yAmplitude + (2 * yAmplitude * pathT)
+    : yAmplitude - (2 * yAmplitude * pathT);
+
+  float zigPosition = pathT * zigs;
+  int zigIndex = int(zigPosition);
+  if (zigIndex >= zigs) {
+    zigIndex = zigs - 1;
+  }
+  float segmentT = zigPosition - zigIndex;
+
+  float startX = (zigIndex % 2 == 0) ? -xAmplitude : xAmplitude;
+  float endX = -startX;
+  setpointX = startX + ((endX - startX) * segmentT);
+}
+
 void line(float length, int i) {
   if (i < pointsPerCycle/2) {
     setpointX = index/length/2;
@@ -326,6 +353,17 @@ void updateSetpoint() {
         ellipse(15,10, index); // set setpoint to circle trajectory
         lastTrajectoryUpdateTime = time;
         index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1 
+        if (index > pointsPerCycle) {
+          index = 0;
+        }
+      }
+      break;
+    case 4:
+      // zig-zag
+      if (dt > updateIncrement) {
+        zigZag(32, 22, index, 6);
+        lastTrajectoryUpdateTime = time;
+        index+=int(round(dt/updateIncrement)); // often dt is larger than the ideal update time (skipping updates)
         if (index > pointsPerCycle) {
           index = 0;
         }
