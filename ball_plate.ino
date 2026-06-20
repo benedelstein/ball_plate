@@ -52,6 +52,9 @@ const float ellipseRadiusY = 10;
 const float spiralMaxRadius = 25;
 const int spiralTurns = 3;
 const float lineLength = 50;
+const float zigZagWidth = 50;
+const float zigZagHeight = 30;
+const int zigZagSegments = 6;
 
 // input smoothing
 const int inputWindowSize = 10;
@@ -69,10 +72,11 @@ enum PathMode {
   PATH_FOUR_CORNERS = 2,
   PATH_ELLIPSE = 3,
   PATH_SPIRAL = 4,
-  PATH_LINE = 5
+  PATH_LINE = 5,
+  PATH_ZIG_ZAG = 6
 };
 
-int mode = PATH_LINE;
+int mode = PATH_ZIG_ZAG;
 
 void setup() {
   Serial.begin(9600); // is this needed at a diff baud?
@@ -289,6 +293,28 @@ void line(float length, int i) {
   setpointY = 0;
 }
 
+void zigZag(float pathWidth, float pathHeight, int segments, int i) {
+  float progress = float(i) / pointsPerCycle;
+  float segmentProgress = progress * segments;
+  int segmentIndex = int(segmentProgress);
+  float segmentFraction = segmentProgress - segmentIndex;
+
+  if (segmentIndex >= segments) {
+    segmentIndex = segments - 1;
+    segmentFraction = 1;
+  }
+
+  float halfWidth = pathWidth / 2;
+  float halfHeight = pathHeight / 2;
+
+  if (segmentIndex % 2 == 0) {
+    setpointX = -halfWidth + (pathWidth * segmentFraction);
+  } else {
+    setpointX = halfWidth - (pathWidth * segmentFraction);
+  }
+  setpointY = -halfHeight + (pathHeight * progress);
+}
+
 int cornerIndex = 1;
 void fourCorners(float l) {
   // todo
@@ -372,6 +398,17 @@ void updateSetpoint() {
       // line
       if (dt > updateIncrement) {
         line(lineLength, index); // move setpoint back and forth along the x axis
+        lastTrajectoryUpdateTime = time;
+        index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1
+        if (index > pointsPerCycle) {
+          index = 0;
+        }
+      }
+      break;
+    case PATH_ZIG_ZAG:
+      // zig zag
+      if (dt > updateIncrement) {
+        zigZag(zigZagWidth, zigZagHeight, zigZagSegments, index); // move setpoint in a zig-zag path
         lastTrajectoryUpdateTime = time;
         index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1
         if (index > pointsPerCycle) {
