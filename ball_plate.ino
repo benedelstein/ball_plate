@@ -47,6 +47,8 @@ const int pointsPerCycle = 150;
 float radialVelocity = 1; // rotations per second
 int index = 0;
 float trajectoryUpdateTime, lastTrajectoryUpdateTime;
+const float ellipseRadiusX = 15;
+const float ellipseRadiusY = 10;
 
 // input smoothing
 const int inputWindowSize = 10;
@@ -58,7 +60,14 @@ float readingsX[inputWindowSize];
 float readingsY[inputWindowSize];
 
 
-int mode = 2;
+enum PathMode {
+  PATH_CENTER = 0,
+  PATH_CIRCLE = 1,
+  PATH_FOUR_CORNERS = 2,
+  PATH_ELLIPSE = 3
+};
+
+int mode = PATH_ELLIPSE;
 
 void setup() {
   Serial.begin(9600); // is this needed at a diff baud?
@@ -296,12 +305,12 @@ void updateSetpoint() {
   float updateIncrement = 1/radialVelocity/pointsPerCycle;
 
   switch(mode) {
-    case 0:
+    case PATH_CENTER:
       // center
       setpointX = 0;
       setpointY = 0;
       break;
-    case 1:
+    case PATH_CIRCLE:
       // circle
       if (dt > updateIncrement) {
         circle(10, index); // set setpoint to circle trajectory
@@ -313,17 +322,17 @@ void updateSetpoint() {
         }
       }
       break;
-    case 2:
+    case PATH_FOUR_CORNERS:
       // four corners
       if(dt > 2) {
         fourCorners(30);
         lastTrajectoryUpdateTime = time;
       }
       break;
-    case 3:
+    case PATH_ELLIPSE:
       // ellipse
-      if (dt > 1/radialVelocity/pointsPerCycle) {
-        ellipse(15,10, index); // set setpoint to circle trajectory
+      if (dt > updateIncrement) {
+        ellipse(ellipseRadiusX, ellipseRadiusY, index); // set setpoint to ellipse trajectory
         lastTrajectoryUpdateTime = time;
         index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1 
         if (index > pointsPerCycle) {
