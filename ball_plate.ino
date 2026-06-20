@@ -51,6 +51,7 @@ const float ellipseRadiusX = 15;
 const float ellipseRadiusY = 10;
 const float spiralMaxRadius = 25;
 const int spiralTurns = 3;
+const float lineLength = 50;
 
 // input smoothing
 const int inputWindowSize = 10;
@@ -67,10 +68,11 @@ enum PathMode {
   PATH_CIRCLE = 1,
   PATH_FOUR_CORNERS = 2,
   PATH_ELLIPSE = 3,
-  PATH_SPIRAL = 4
+  PATH_SPIRAL = 4,
+  PATH_LINE = 5
 };
 
-int mode = PATH_SPIRAL;
+int mode = PATH_LINE;
 
 void setup() {
   Serial.begin(9600); // is this needed at a diff baud?
@@ -276,10 +278,13 @@ void spiral(float maxRadius, int turns, int i) {
 }
 
 void line(float length, int i) {
-  if (i < pointsPerCycle/2) {
-    setpointX = index/length/2;
+  float progress = float(i) / pointsPerCycle;
+  float halfLength = length / 2;
+
+  if (progress < 0.5) {
+    setpointX = -halfLength + (length * progress * 2);
   } else {
-    setpointX = -index/length/2;
+    setpointX = halfLength - (length * (progress - 0.5) * 2);
   }
   setpointY = 0;
 }
@@ -359,6 +364,17 @@ void updateSetpoint() {
         lastTrajectoryUpdateTime = time;
         index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1
         if (index > pointsPerCycle * spiralTurns) {
+          index = 0;
+        }
+      }
+      break;
+    case PATH_LINE:
+      // line
+      if (dt > updateIncrement) {
+        line(lineLength, index); // move setpoint back and forth along the x axis
+        lastTrajectoryUpdateTime = time;
+        index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1
+        if (index > pointsPerCycle) {
           index = 0;
         }
       }
