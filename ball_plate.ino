@@ -12,6 +12,8 @@ float setpointX = 0; // x setpoint in mm. let center of screen = (0,0). bottom l
 float setpointY = 0; // y setpoint in mm
 const float width = 165; // x direction
 const float height = 105; // y direction (mm) 
+const float rawTouchMin = 0.0;
+const float rawTouchMax = 1024.0;
 float time, timePrev;
 float errorX, errorY, previousErrorX, previousErrorY;
 TSPoint p; // current point of touchscreen
@@ -133,8 +135,8 @@ void loop() {
       // using full range still because then that doesn't inflate the xy readings.
       // if i used a range of 75-950, then a reading of 950 is 82.5, but it cant read your finger that close, its
       // really just a reading of about ~75mm
-      float x = map(p.x, 0, 1024, -82.5, 82.5); // x is 165 mm wide
-      float y = map(p.y, 0, 1024, -52.5, 52.5); // y is 105mm wide
+      float x = normalizeRawX(p.x); // x is 165 mm wide
+      float y = normalizeRawY(p.y); // y is 105mm wide
   //    Serial.println(x);
   
       sumX = sumX - readingsX[0]; // subtract oldest reading
@@ -336,6 +338,19 @@ void updateSetpoint() {
       setpointY = 0;
       break;
   }
+}
+
+
+float mapFloat(float value, float inMinimum, float inMaximum, float outMinimum, float outMaximum) {
+  return (value - inMinimum) * (outMaximum - outMinimum) / (inMaximum - inMinimum) + outMinimum;
+}
+
+float normalizeRawX(int rawX) {
+  return mapFloat(rawX, rawTouchMin, rawTouchMax, -width / 2.0, width / 2.0);
+}
+
+float normalizeRawY(int rawY) {
+  return mapFloat(rawY, rawTouchMin, rawTouchMax, -height / 2.0, height / 2.0);
 }
 
 
