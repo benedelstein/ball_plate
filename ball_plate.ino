@@ -12,6 +12,8 @@ float setpointX = 0; // x setpoint in mm. let center of screen = (0,0). bottom l
 float setpointY = 0; // y setpoint in mm
 const float width = 165; // x direction
 const float height = 105; // y direction (mm) 
+const float touchRawMin = 0.0;
+const float touchRawMax = 1024.0;
 float time, timePrev;
 float errorX, errorY, previousErrorX, previousErrorY;
 TSPoint p; // current point of touchscreen
@@ -71,6 +73,15 @@ void setup() {
   time = millis();
   lastTrajectoryUpdateTime = millis();
 //  setpointX = 30;
+}
+
+// Convert raw touchscreen readings to physical mm with the plate center as (0, 0).
+// This intentionally uses the full raw span instead of the measured edge-touch span
+// below, so hard-to-reach edge readings do not stretch the coordinate system.
+float normalizeTouchToMm(int rawValue, float axisLengthMm) {
+  float rawCenter = (touchRawMin + touchRawMax) / 2.0;
+  float rawSpan = touchRawMax - touchRawMin;
+  return (float(rawValue) - rawCenter) * axisLengthMm / rawSpan;
 }
 
 void loop() {
@@ -133,8 +144,8 @@ void loop() {
       // using full range still because then that doesn't inflate the xy readings.
       // if i used a range of 75-950, then a reading of 950 is 82.5, but it cant read your finger that close, its
       // really just a reading of about ~75mm
-      float x = map(p.x, 0, 1024, -82.5, 82.5); // x is 165 mm wide
-      float y = map(p.y, 0, 1024, -52.5, 52.5); // y is 105mm wide
+      float x = normalizeTouchToMm(p.x, width); // x is 165 mm wide
+      float y = normalizeTouchToMm(p.y, height); // y is 105mm wide
   //    Serial.println(x);
   
       sumX = sumX - readingsX[0]; // subtract oldest reading
