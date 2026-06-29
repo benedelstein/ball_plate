@@ -13,7 +13,7 @@ float setpointY = 0; // y setpoint in mm
 const float width = 165; // x direction
 const float height = 105; // y direction (mm)
 float time, timePrev;
-float errorX, errorY, previousErrorX, previousErrorY;
+float errorX, errorY, previousFilteredX, previousFilteredY;
 TSPoint p; // current point of touchscreen
 float Ix, Iy; // integral terms for each axis
 int numValidPoints = 0; // number of consecutive valid points. used to discard random measurements that may swing the motors
@@ -22,20 +22,20 @@ int numInvalidPoints = 0; // number of consecutive no-touch points. if crosses a
 /////////////////PID CONSTANTS/////////////////
 // New approach: PID output is servo tilt in degrees.
 // Tune these as deg/mm, deg/(mm*s), and deg*s/mm.
-// Aggressive tune: faster correction with more allowable plate angle.
-// If it oscillates, reduce Kdx/Kdy first, then Kpx/Kpy.
-const float Kpx = .42;
-const float Kix = .008;
-const float Kdx = .19;
+// PI-D tune: proportional/integral use position error, derivative uses
+// measured ball velocity to reduce derivative kick when setpoints jump.
+const float Kpx = .30;
+const float Kix = .010;
+const float Kdx = .13;
 
-const float Kpy = .36;
-const float Kiy = .010;
-const float Kdy = .155;
+const float Kpy = .26;
+const float Kiy = .012;
+const float Kdy = .105;
 
-const float maxXTilt = 48;
-const float maxYTilt = 38;
-const float maxIntegralTilt = 2.5;
-const float integralActiveError = 14; // only integrate near the target
+const float maxXTilt = 36;
+const float maxYTilt = 30;
+const float maxIntegralTilt = 3;
+const float integralActiveError = 18; // only integrate near the target
 ///////////////////////////////////////////////
 
 // SERVOS (doesn't need pwm pins)
@@ -56,12 +56,12 @@ int index = 0;
 float trajectoryUpdateTime, lastTrajectoryUpdateTime;
 
 // input smoothing
-const float inputAlpha = 0.45; // higher = faster response, lower = smoother signal
+const float inputAlpha = 0.32; // higher = faster response, lower = smoother signal
 const int touchThreshold = 10;
 float filteredX = 0;
 float filteredY = 0;
 bool filterInitialized = false;
-bool havePreviousError = false;
+bool havePreviousMeasurement = false;
 bool servosAttached = false;
 
 int mode = 2;
@@ -75,7 +75,7 @@ void attachServos();
 void detachServos();
 void resetPidAndFilter();
 float fmap(float value, float in_min, float in_max, float out_min, float out_max);
-float calculateTilt(float error, float previousError, float *integral, float kp, float ki, float kd, float maxTilt, float dt);
+float calculateTilt(float error, float measurement, float previousMeasurement, float *integral, float kp, float ki, float kd, float maxTilt, float dt);
 int clip(int value, int minimum, int maximum);
 float clip2(float value, float minimum, float maximum);
 
@@ -118,7 +118,7 @@ void loop() {
     //    Serial.println("discarded");
         numValidPoints = 0;
         numInvalidPoints++;
-        havePreviousError = false;
+        havePreviousMeasurement = false;
     //    Serial.print("invalid points count: "); Serial.println(numInvalidPoints);
       } else {
         attachServos();
@@ -173,10 +173,10 @@ void loop() {
     //  Serial.print("x error = "); Serial.println(errorX);
     //  Serial.print("y error = "); Serial.println(errorY);
 
-      // New approach: the controller directly outputs a requested platform
-      // tilt in degrees. No extra map-from-distance-to-servo step.
-      float xTilt = calculateTilt(errorX, previousErrorX, &Ix, Kpx, Kix, Kdx, maxXTilt, dt);
-      float yTilt = calculateTilt(errorY, previousErrorY, &Iy, Kpy, Kiy, Kdy, maxYTilt, dt);
+      // PI-D approach: the controller directly outputs platform tilt in
+      // degrees. D is based on measured ball velocity, not error velocity.
+      float xTilt = calculateTilt(errorX, filteredX, previousFilteredX, &Ix, Kpx, Kix, Kdx, maxXTilt, dt);
+      float yTilt = calculateTilt(errorY, filteredY, previousFilteredY, &Iy, Kpy, Kiy, Kdy, maxYTilt, dt);
 
       int xAngle = clip(int(round(flatXAngle + xTilt)), 0, 180);
       int yAngle = clip(int(round(flatYAngle + yTilt)), 0, 180);
@@ -189,9 +189,9 @@ void loop() {
       xServo.write(xAngle);
       yServo.write(yAngle);
 
-      previousErrorX = errorX;
-      previousErrorY = errorY;
-      havePreviousError = true;
+      previousFilteredX = filteredX;
+      previousFilteredY = filteredY;
+      havePreviousMeasurement = true;
     }
   }
 }
@@ -322,9 +322,9 @@ void detachServos() {
 void resetPidAndFilter() {
   Ix = 0;
   Iy = 0;
-  previousErrorX = 0;
-  previousErrorY = 0;
-  havePreviousError = false;
+  previousFilteredX = 0;
+  previousFilteredY = 0;
+  havePreviousMeasurement = false;
   filterInitialized = false;
   filteredX = 0;
   filteredY = 0;
@@ -334,7 +334,7 @@ float fmap(float value, float in_min, float in_max, float out_min, float out_max
   return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-float calculateTilt(float error, float previousError, float *integral, float kp, float ki, float kd, float maxTilt, float dt) {
+float calculateTilt(float error, float measurement, float previousMeasurement, float *integral, float kp, float ki, float kd, float maxTilt, float dt) {
   float proportional = kp * error;
 
   // Anti-windup: only integrate when the ball is reasonably close to the target.
@@ -346,8 +346,10 @@ float calculateTilt(float error, float previousError, float *integral, float kp,
   }
 
   float derivative = 0;
-  if(havePreviousError) {
-    derivative = kd * (error - previousError) / dt;
+  if(havePreviousMeasurement) {
+    // Derivative-on-measurement damps ball velocity and avoids a kick when the
+    // setpoint changes suddenly.
+    derivative = -kd * (measurement - previousMeasurement) / dt;
   }
 
   return clip2(proportional + *integral + derivative, -maxTilt, maxTilt);
