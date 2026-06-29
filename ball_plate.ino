@@ -22,21 +22,20 @@ int numInvalidPoints = 0; // number of consecutive no-touch points. if crosses a
 /////////////////PID CONSTANTS/////////////////
 // New approach: PID output is servo tilt in degrees.
 // Tune these as deg/mm, deg/(mm*s), and deg*s/mm.
-// Conservative starting tune for hardware testing. Increase Kp first if it
-// feels too slow, increase Kd if it overshoots, and add Ki only after P/D
-// behavior is stable.
-const float Kpx = .22;
-const float Kix = .012;
-const float Kdx = .09;
+// More responsive tune. Still capped to avoid slamming the plate, but with
+// stronger P/D response than the conservative test values.
+const float Kpx = .30;
+const float Kix = .010;
+const float Kdx = .13;
 
-const float Kpy = .20;
-const float Kiy = .014;
-const float Kdy = .075;
+const float Kpy = .26;
+const float Kiy = .012;
+const float Kdy = .105;
 
-const float maxXTilt = 28;
-const float maxYTilt = 24;
-const float maxIntegralTilt = 4;
-const float integralActiveError = 22; // only integrate near the target
+const float maxXTilt = 36;
+const float maxYTilt = 30;
+const float maxIntegralTilt = 3;
+const float integralActiveError = 18; // only integrate near the target
 ///////////////////////////////////////////////
 
 // SERVOS (doesn't need pwm pins)
@@ -57,7 +56,7 @@ int index = 0;
 float trajectoryUpdateTime, lastTrajectoryUpdateTime;
 
 // input smoothing
-const float inputAlpha = 0.25; // higher = faster response, lower = smoother signal
+const float inputAlpha = 0.32; // higher = faster response, lower = smoother signal
 const int touchThreshold = 10;
 float filteredX = 0;
 float filteredY = 0;
