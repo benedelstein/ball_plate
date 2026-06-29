@@ -58,7 +58,7 @@ float readingsX[inputWindowSize];
 float readingsY[inputWindowSize];
 
 
-int mode = 2;
+int mode = 2; // set to 4 for zig-zag path
 
 void setup() {
   Serial.begin(9600); // is this needed at a diff baud?
@@ -254,6 +254,39 @@ void ellipse(float a, float b, int i) {
     setpointY = b * sin(angle);
 }
 
+// setpoint traces a continuous zig-zag path
+// xAmplitude and yAmplitude are in mm from center.
+// segments is the number of horizontal sweeps per full cycle; use an even
+// number so the path returns smoothly to its starting x position.
+void zigZag(float xAmplitude, float yAmplitude, int i, int segments) {
+  if (segments < 2) {
+    segments = 2;
+  }
+
+  // keep phase in [0, 1)
+  float phase = float(i % pointsPerCycle) / pointsPerCycle;
+
+  // Triangle wave for X: left->right, then right->left, repeating.
+  float segmentFloat = phase * segments;
+  int segment = int(segmentFloat);
+  float localPhase = segmentFloat - segment;
+
+  if (segment % 2 == 0) {
+    setpointX = -xAmplitude + 2 * xAmplitude * localPhase;
+  } else {
+    setpointX = xAmplitude - 2 * xAmplitude * localPhase;
+  }
+
+  // Triangle wave for Y over the whole cycle: bottom->top->bottom.
+  float verticalPhase;
+  if (phase < 0.5) {
+    verticalPhase = phase * 2;
+  } else {
+    verticalPhase = (1 - phase) * 2;
+  }
+  setpointY = -yAmplitude + 2 * yAmplitude * verticalPhase;
+}
+
 void line(float length, int i) {
   if (i < pointsPerCycle/2) {
     setpointX = index/length/2;
@@ -326,6 +359,17 @@ void updateSetpoint() {
         ellipse(15,10, index); // set setpoint to circle trajectory
         lastTrajectoryUpdateTime = time;
         index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1 
+        if (index > pointsPerCycle) {
+          index = 0;
+        }
+      }
+      break;
+    case 4:
+      // zig-zag
+      if (dt > updateIncrement) {
+        zigZag(35, 20, index, 6); // sweep between +/-35mm X and +/-20mm Y
+        lastTrajectoryUpdateTime = time;
+        index+=int(round(dt/updateIncrement));
         if (index > pointsPerCycle) {
           index = 0;
         }
