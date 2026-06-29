@@ -64,6 +64,7 @@ int mode = 2;
 void updateSetpoint();
 void circle(float radius, int i);
 void ellipse(float a, float b, int i);
+void figureEight(float a, float b, int i);
 void line(float length, int i);
 void fourCorners(float l);
 void attachServos();
@@ -204,6 +205,13 @@ void ellipse(float a, float b, int i) {
     setpointY = b * sin(angle);
 }
 
+void figureEight(float a, float b, int i) {
+  // Gerono lemniscate / sideways figure 8 centered at (0, 0).
+  float angle = float(i)/pointsPerCycle * 2.0 * PI;
+  setpointX = a * sin(angle);
+  setpointY = b * sin(angle) * cos(angle);
+}
+
 void line(float length, int i) {
   int halfCycle = pointsPerCycle / 2;
   int wrappedIndex = i % pointsPerCycle;
@@ -279,9 +287,20 @@ void updateSetpoint() {
     case 3:
       // ellipse
       if (dt > 1/radialVelocity/pointsPerCycle) {
-        ellipse(15,10, index); // set setpoint to circle trajectory
+        ellipse(15,10, index); // set setpoint to ellipse trajectory
         lastTrajectoryUpdateTime = time;
         index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1
+        if (index > pointsPerCycle) {
+          index = 0;
+        }
+      }
+      break;
+    case 4:
+      // figure 8
+      if (dt > updateIncrement) {
+        figureEight(25, 18, index);
+        lastTrajectoryUpdateTime = time;
+        index+=int(round(dt/updateIncrement));
         if (index > pointsPerCycle) {
           index = 0;
         }
