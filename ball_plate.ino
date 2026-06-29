@@ -12,12 +12,14 @@ float setpointX = 0; // x setpoint in mm. let center of screen = (0,0). bottom l
 float setpointY = 0; // y setpoint in mm
 const float width = 165; // x direction
 const float height = 105; // y direction (mm) 
-float time, timePrev;
+unsigned long time, timePrev;
 float errorX, errorY, previousErrorX, previousErrorY;
 TSPoint p; // current point of touchscreen
 float Px, Ix, Dx, Py, Iy, Dy; // pid values for each axis
 int numValidPoints = 0; // number of consecutive valid points. used to discard random measurements that may swing the motors
 int numInvalidPoints = 0; // number of consecutive no-touch points. if crosses a threshold, motors are reset
+bool filterInitialized = false;
+bool controllerInitialized = false;
 
 /////////////////PID CONSTANTS/////////////////
 // TODO: MAY NEED DIFFERENT CONSTANTS FOR X AND Y. 
@@ -46,7 +48,7 @@ TouchScreen ts = TouchScreen(XP, YP, XM, YM, 500);
 const int pointsPerCycle = 150;
 float radialVelocity = 1; // rotations per second
 int index = 0;
-float trajectoryUpdateTime, lastTrajectoryUpdateTime;
+unsigned long trajectoryUpdateTime, lastTrajectoryUpdateTime;
 
 // input smoothing
 const int inputWindowSize = 10;
@@ -69,6 +71,7 @@ void setup() {
   xServo.write(flatXAngle); // might not be 90
   yServo.write(flatYAngle);
   time = millis();
+  timePrev = time;
   lastTrajectoryUpdateTime = millis();
 //  setpointX = 30;
 }
@@ -78,7 +81,7 @@ void loop() {
 
   // read time
   time = millis();
-  float dt = (time - timePrev) / 1000; // get to seconds from milliseconds
+  float dt = (time - timePrev) / 1000.0; // get to seconds from milliseconds
 //  Serial.print("dt: "); Serial.println(dt*1000);
 //  Serial.println(time-lastTrajectoryUpdateTime);
   updateSetpoint();
@@ -94,8 +97,10 @@ void loop() {
   //  Serial.print("\tY = "); Serial.print(p.y);
   //  Serial.print("\tPressure = "); Serial.println(p.z);
     
+    bool hasValidTouch = (p.z >= 10);
+
     // nothing is touching, discard this point
-      if(p.z == 0) {
+      if(!hasValidTouch) {
     //    Serial.println("discarded");
         numValidPoints = 0;
         numInvalidPoints++;
@@ -107,17 +112,15 @@ void loop() {
     
       // reset motors if not long enough
       if(numInvalidPoints >= 100) {
-        xServo.write(flatXAngle);
-        yServo.write(flatYAngle);
-        Ix = 0; // reset integrals
-        Iy = 0;
+        resetServosFlat();
+        resetController();
+        resetFilter();
+        if(numInvalidPoints >= 300) {
+          // not sure if this does anything
+          xServo.detach();
+          yServo.detach();
+        }
         return;
-      }
-    
-     if(numInvalidPoints >= 300) {
-        // not sure if this does anything
-        xServo.detach();
-        yServo.detach();
       }
     
       // wait for accumulation of readings to do something
@@ -126,35 +129,20 @@ void loop() {
       }
   
       // valid point, continue
-      if (p.z >= 10) {
+      if (hasValidTouch) {
+      if (!xServo.attached()) xServo.attach(xServoPin);
+      if (!yServo.attached()) yServo.attach(yServoPin);
       // convert readings to mm
       // the readings never get that close to the edges
       // actual range: x: 75-950, y: 100-870
       // using full range still because then that doesn't inflate the xy readings.
       // if i used a range of 75-950, then a reading of 950 is 82.5, but it cant read your finger that close, its
       // really just a reading of about ~75mm
-      float x = map(p.x, 0, 1024, -82.5, 82.5); // x is 165 mm wide
-      float y = map(p.y, 0, 1024, -52.5, 52.5); // y is 105mm wide
+      float x = mapFloat(p.x, 0, 1024, -82.5, 82.5); // x is 165 mm wide
+      float y = mapFloat(p.y, 0, 1024, -52.5, 52.5); // y is 105mm wide
   //    Serial.println(x);
-  
-      sumX = sumX - readingsX[0]; // subtract oldest reading
-      for(int i = 0; i< inputWindowSize - 1; i++) {
-        // shift each reading to the left
-        readingsX[i] = readingsX[i+1];
-      }
-      readingsX[inputWindowSize -1] = x; // add newest reading to history
-      sumX = sumX + x;
-      filteredX = sumX/inputWindowSize; // average 
-  //    Serial.print(x); Serial.print(",");Serial.println(filteredX);
-  
-      sumY = sumY - readingsY[0]; // subtract oldest reading
-      for(int i = 0; i< inputWindowSize - 1; i++) {
-        // shift each reading to the left
-        readingsY[i] = readingsY[i+1];
-      }
-      readingsY[inputWindowSize -1] = y; // add newest reading to history
-      sumY = sumY + y;
-      filteredY = sumY/inputWindowSize; // average 
+
+      updateFilteredPosition(x, y);
   //    Serial.print(y); Serial.print(","); Serial.println(filteredY);
   //    Serial.println(x);
   //    Serial.print("\t");
@@ -163,6 +151,11 @@ void loop() {
       // calculate error
       errorX = setpointX - filteredX;
       errorY = setpointY - filteredY;
+      if (!controllerInitialized) {
+        previousErrorX = errorX;
+        previousErrorY = errorY;
+        controllerInitialized = true;
+      }
     //  Serial.print("x error = "); Serial.println(errorX);
     //  Serial.print("y error = "); Serial.println(errorY);
     
@@ -216,8 +209,8 @@ void loop() {
       // map output values to 0-180 or smaller range
       // TODO: WHAT ARE THE INPUT LIMITS?
       // do I take a linear mapping, or just clip the values?
-      int xOutput = int(round(map(PIDx, -width/2, width/2, -50, 50))); // x needs larger range to achieve same angle
-      int yOutput = int(round(map(PIDy, -height/2, height/2, -40, 40)));
+      int xOutput = int(round(mapFloat(PIDx, -width/2, width/2, -50, 50))); // x needs larger range to achieve same angle
+      int yOutput = int(round(mapFloat(PIDy, -height/2, height/2, -40, 40)));
       xOutput = clip(xOutput,-50,50);
       yOutput = clip(yOutput,-40,40);
 //      Serial.print("X angle: "); 
@@ -292,7 +285,7 @@ void fourCorners(float l) {
 }
 
 void updateSetpoint() {
-  float dt = (time - lastTrajectoryUpdateTime)/1000;
+  float dt = (time - lastTrajectoryUpdateTime)/1000.0;
   float updateIncrement = 1/radialVelocity/pointsPerCycle;
 
   switch(mode) {
@@ -359,4 +352,73 @@ float clip2(float value, float minimum, float maximum) {
     return minimum;
   }
   return value;
+}
+
+float mapFloat(float value, float fromLow, float fromHigh, float toLow, float toHigh) {
+  return (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow) + toLow;
+}
+
+void resetController() {
+  Ix = 0;
+  Iy = 0;
+  Dx = 0;
+  Dy = 0;
+  previousErrorX = 0;
+  previousErrorY = 0;
+  controllerInitialized = false;
+}
+
+void resetFilter() {
+  sumX = 0;
+  sumY = 0;
+  filteredX = 0;
+  filteredY = 0;
+  filterInitialized = false;
+
+  for (int i = 0; i < inputWindowSize; i++) {
+    readingsX[i] = 0;
+    readingsY[i] = 0;
+  }
+}
+
+void resetServosFlat() {
+  if (!xServo.attached()) xServo.attach(xServoPin);
+  if (!yServo.attached()) yServo.attach(yServoPin);
+  xServo.write(flatXAngle);
+  yServo.write(flatYAngle);
+}
+
+void updateFilteredPosition(float x, float y) {
+  if (!filterInitialized) {
+    sumX = 0;
+    sumY = 0;
+    for (int i = 0; i < inputWindowSize; i++) {
+      readingsX[i] = x;
+      readingsY[i] = y;
+      sumX += x;
+      sumY += y;
+    }
+    filteredX = x;
+    filteredY = y;
+    filterInitialized = true;
+    return;
+  }
+
+  sumX = sumX - readingsX[0]; // subtract oldest reading
+  sumY = sumY - readingsY[0];
+
+  for(int i = 0; i < inputWindowSize - 1; i++) {
+    // shift each reading to the left
+    readingsX[i] = readingsX[i+1];
+    readingsY[i] = readingsY[i+1];
+  }
+
+  readingsX[inputWindowSize - 1] = x; // add newest reading to history
+  readingsY[inputWindowSize - 1] = y;
+
+  sumX = sumX + x;
+  sumY = sumY + y;
+
+  filteredX = sumX/inputWindowSize; // average
+  filteredY = sumY/inputWindowSize;
 }
