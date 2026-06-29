@@ -7,11 +7,11 @@
 #define YM 8   // Y minus. can be a digital pin
 #define XP 9   // X plus. can be a digital pin
 
-// full dimensions of screen is 165x105mm. 
+// full dimensions of screen is 165x105mm.
 float setpointX = 0; // x setpoint in mm. let center of screen = (0,0). bottom left edge = (-82.5,-52.5)
 float setpointY = 0; // y setpoint in mm
 const float width = 165; // x direction
-const float height = 105; // y direction (mm) 
+const float height = 105; // y direction (mm)
 float time, timePrev;
 float errorX, errorY, previousErrorX, previousErrorY;
 TSPoint p; // current point of touchscreen
@@ -20,7 +20,7 @@ int numValidPoints = 0; // number of consecutive valid points. used to discard r
 int numInvalidPoints = 0; // number of consecutive no-touch points. if crosses a threshold, motors are reset
 
 /////////////////PID CONSTANTS/////////////////
-// TODO: MAY NEED DIFFERENT CONSTANTS FOR X AND Y. 
+// TODO: MAY NEED DIFFERENT CONSTANTS FOR X AND Y.
 // each axis has a different length, so different moment of inertia, etc.
 const double Kpx = .55;
 const double Kix = 0.05; //.1
@@ -56,20 +56,23 @@ float sumX = 0;
 float sumY = 0;
 float readingsX[inputWindowSize];
 float readingsY[inputWindowSize];
-
+int readingIndex = 0;
+int readingCount = 0;
+bool havePreviousError = false;
+bool servosAttached = false;
 
 int mode = 2;
 
 void setup() {
   Serial.begin(9600); // is this needed at a diff baud?
-  xServo.attach(xServoPin);
-  yServo.attach(yServoPin);
+  attachServos();
 
   // todo: write the servos to their starting points (flat). determine what the starting points should be
   xServo.write(flatXAngle); // might not be 90
   yServo.write(flatYAngle);
   time = millis();
-  lastTrajectoryUpdateTime = millis();
+  timePrev = time;
+  lastTrajectoryUpdateTime = time;
 //  setpointX = 30;
 }
 
@@ -89,42 +92,41 @@ void loop() {
     // read current position
     // get x and y position of ball on touchscreen
     p = ts.getPoint();
-  
+
   //  Serial.print("X = "); Serial.print(p.x);
   //  Serial.print("\tY = "); Serial.print(p.y);
   //  Serial.print("\tPressure = "); Serial.println(p.z);
-    
+
     // nothing is touching, discard this point
       if(p.z == 0) {
     //    Serial.println("discarded");
         numValidPoints = 0;
         numInvalidPoints++;
+        havePreviousError = false;
     //    Serial.print("invalid points count: "); Serial.println(numInvalidPoints);
       } else {
+        attachServos();
         numValidPoints++;
-        numInvalidPoints = 0; // reset to zero because we have a a valid point now
+        numInvalidPoints = 0; // reset to zero because we have a valid point now
       }
-    
-      // reset motors if not long enough
+
+      // reset motors if the ball has been missing for a while
       if(numInvalidPoints >= 100) {
         xServo.write(flatXAngle);
         yServo.write(flatYAngle);
-        Ix = 0; // reset integrals
-        Iy = 0;
+        resetPidAndFilter();
+
+        if(numInvalidPoints >= 300) {
+          detachServos();
+        }
         return;
       }
-    
-     if(numInvalidPoints >= 300) {
-        // not sure if this does anything
-        xServo.detach();
-        yServo.detach();
-      }
-    
+
       // wait for accumulation of readings to do something
       if(numValidPoints < 3) {
         return;
       }
-  
+
       // valid point, continue
       if (p.z >= 10) {
       // convert readings to mm
@@ -133,46 +135,44 @@ void loop() {
       // using full range still because then that doesn't inflate the xy readings.
       // if i used a range of 75-950, then a reading of 950 is 82.5, but it cant read your finger that close, its
       // really just a reading of about ~75mm
-      float x = map(p.x, 0, 1024, -82.5, 82.5); // x is 165 mm wide
-      float y = map(p.y, 0, 1024, -52.5, 52.5); // y is 105mm wide
+      float x = fmap(p.x, 0, 1024, -82.5, 82.5); // x is 165 mm wide
+      float y = fmap(p.y, 0, 1024, -52.5, 52.5); // y is 105mm wide
   //    Serial.println(x);
-  
-      sumX = sumX - readingsX[0]; // subtract oldest reading
-      for(int i = 0; i< inputWindowSize - 1; i++) {
-        // shift each reading to the left
-        readingsX[i] = readingsX[i+1];
-      }
-      readingsX[inputWindowSize -1] = x; // add newest reading to history
+
+      // Moving average. Use a circular buffer and divide by the number of
+      // samples we actually have so startup is not biased toward zero.
+      sumX = sumX - readingsX[readingIndex]; // subtract oldest reading
+      sumY = sumY - readingsY[readingIndex];
+      readingsX[readingIndex] = x;
+      readingsY[readingIndex] = y;
       sumX = sumX + x;
-      filteredX = sumX/inputWindowSize; // average 
-  //    Serial.print(x); Serial.print(",");Serial.println(filteredX);
-  
-      sumY = sumY - readingsY[0]; // subtract oldest reading
-      for(int i = 0; i< inputWindowSize - 1; i++) {
-        // shift each reading to the left
-        readingsY[i] = readingsY[i+1];
-      }
-      readingsY[inputWindowSize -1] = y; // add newest reading to history
       sumY = sumY + y;
-      filteredY = sumY/inputWindowSize; // average 
+      if(readingCount < inputWindowSize) {
+        readingCount++;
+      }
+      readingIndex = (readingIndex + 1) % inputWindowSize;
+      filteredX = sumX/readingCount; // average
+  //    Serial.print(x); Serial.print(",");Serial.println(filteredX);
+
+      filteredY = sumY/readingCount; // average
   //    Serial.print(y); Serial.print(","); Serial.println(filteredY);
   //    Serial.println(x);
   //    Serial.print("\t");
   //    Serial.println(y);
-  
+
       // calculate error
       errorX = setpointX - filteredX;
       errorY = setpointY - filteredY;
     //  Serial.print("x error = "); Serial.println(errorX);
     //  Serial.print("y error = "); Serial.println(errorY);
-    
+
       // calculate x and y motor PID independently
       Px = Kpx*errorX;
       // only add integral if nearby to target
   //    Serial.println(errorX);
   //    if (abs(errorX) <= 30 ) {
         Ix += Kix*errorX*dt;
-  //    } 
+  //    }
   //    else {
   //      Ix = 0;
   //    }
@@ -181,11 +181,15 @@ void loop() {
   //    }
       // TODO: MAYBE CLIP TO EVEN TIGHTER BOUNDS ON SUM
       Ix = clip2(Ix, -10, 10);
-      Dx = Kdx*(errorX-previousErrorX)/dt;
+      if(havePreviousError) {
+        Dx = Kdx*(errorX-previousErrorX)/dt;
+      } else {
+        Dx = 0;
+      }
 //      Dx = clip2(Dx, -30,30);
       float PIDx = Px+Ix+Dx;
 //      Serial.print(Px); Serial.print(","); Serial.print(Ix); Serial.print(","); Serial.println(Dx);
-    
+
       Py = Kpy*errorY;
   //    if(abs(errorY) <= 30 ) {
         Iy += Kiy*errorY*dt;
@@ -194,37 +198,41 @@ void loop() {
   //      Iy = 0;
   //    }
       Iy = clip2(Iy, -height/2, height/2);
-      Dy = Kdy*(errorY-previousErrorY)/dt;
+      if(havePreviousError) {
+        Dy = Kdy*(errorY-previousErrorY)/dt;
+      } else {
+        Dy = 0;
+      }
 //      Dy = clip2(Dy, -50,50);
       float PIDy = Py+Iy+Dy;
       Serial.print(Py); Serial.print(","); Serial.print(Iy); Serial.print(","); Serial.println(Dy);
 
-      
+
   //    Serial.println(Dy);
   //    Serial.println(Py);
   //    Serial.print("PIDx = "); Serial.println(PIDx);
   //    Serial.print("PIDy = "); Serial.println(PIDy);
-      
+
       // transform and output based on PID output
-      
+
       // HOW DO I MAP AN ERROR IN DISTANCE (FROM TOUCHSCREEN) TO AN OUTPUT IN MOTOR ANGLE?
       // IS IT ALL IN THE PID CONSTANTS? IS THERE A TRANSFER FUNCTION?
-      
+
       // e.g. map to output range of 0-180
-      // if x is less than setpoint x, then move one servo to tilt x 
+      // if x is less than setpoint x, then move one servo to tilt x
       // same for y
       // map output values to 0-180 or smaller range
       // TODO: WHAT ARE THE INPUT LIMITS?
       // do I take a linear mapping, or just clip the values?
-      int xOutput = int(round(map(PIDx, -width/2, width/2, -50, 50))); // x needs larger range to achieve same angle
-      int yOutput = int(round(map(PIDy, -height/2, height/2, -40, 40)));
+      int xOutput = int(round(fmap(PIDx, -width/2, width/2, -50, 50))); // x needs larger range to achieve same angle
+      int yOutput = int(round(fmap(PIDy, -height/2, height/2, -40, 40)));
       xOutput = clip(xOutput,-50,50);
       yOutput = clip(yOutput,-40,40);
-//      Serial.print("X angle: "); 
+//      Serial.print("X angle: ");
 //      Serial.println(xOutput);
-//      Serial.print("Y angle: "); 
+//      Serial.print("Y angle: ");
 //      Serial.println(yOutput);
-  
+
       // even point +/- whatever the PID was. so if even point is 90 degrees and PID output is 10, write 90+10 to servo
       // TODO: maybe use writeMicroseconds() to get more resolution. 1000-2000 microseconds range corresponds to 0-180
       xServo.write(flatXAngle + xOutput);
@@ -233,6 +241,7 @@ void loop() {
       // set this for the next loop
       previousErrorX = errorX;
       previousErrorY = errorY;
+      havePreviousError = true;
     }
   }
 }
@@ -243,23 +252,29 @@ void loop() {
 // so for index 1 and num points = 100, 1/100*360 = angle in degrees. calculate based on that
 // how many indices should there be for a reasonable rotation rate?
 void circle(float radius, int i) {
-    float angle = float(i)/pointsPerCycle * M_PI * 2;
+    float angle = float(i)/pointsPerCycle * 2.0 * PI;
     setpointX = radius * cos(angle);
     setpointY = radius * sin(angle);
 }
 
 void ellipse(float a, float b, int i) {
-    float angle = float(i)/pointsPerCycle * M_PI * 2;
+    float angle = float(i)/pointsPerCycle * 2.0 * PI;
     setpointX = a * cos(angle);
     setpointY = b * sin(angle);
 }
 
 void line(float length, int i) {
-  if (i < pointsPerCycle/2) {
-    setpointX = index/length/2;
+  int halfCycle = pointsPerCycle / 2;
+  int wrappedIndex = i % pointsPerCycle;
+  float progress;
+
+  if (wrappedIndex < halfCycle) {
+    progress = float(wrappedIndex) / halfCycle;
   } else {
-    setpointX = -index/length/2;
+    progress = 1.0 - float(wrappedIndex - halfCycle) / halfCycle;
   }
+
+  setpointX = -length / 2.0 + progress * length;
   setpointY = 0;
 }
 
@@ -325,7 +340,7 @@ void updateSetpoint() {
       if (dt > 1/radialVelocity/pointsPerCycle) {
         ellipse(15,10, index); // set setpoint to circle trajectory
         lastTrajectoryUpdateTime = time;
-        index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1 
+        index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1
         if (index > pointsPerCycle) {
           index = 0;
         }
@@ -338,6 +353,44 @@ void updateSetpoint() {
   }
 }
 
+void attachServos() {
+  if(!servosAttached) {
+    xServo.attach(xServoPin);
+    yServo.attach(yServoPin);
+    servosAttached = true;
+  }
+}
+
+void detachServos() {
+  if(servosAttached) {
+    xServo.detach();
+    yServo.detach();
+    servosAttached = false;
+  }
+}
+
+void resetPidAndFilter() {
+  Ix = 0;
+  Iy = 0;
+  previousErrorX = 0;
+  previousErrorY = 0;
+  havePreviousError = false;
+
+  sumX = 0;
+  sumY = 0;
+  filteredX = 0;
+  filteredY = 0;
+  readingIndex = 0;
+  readingCount = 0;
+  for(int i = 0; i < inputWindowSize; i++) {
+    readingsX[i] = 0;
+    readingsY[i] = 0;
+  }
+}
+
+float fmap(float value, float in_min, float in_max, float out_min, float out_max) {
+  return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
 
 // helper
 int clip(int value, int minimum, int maximum) {
