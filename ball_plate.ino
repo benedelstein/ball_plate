@@ -254,6 +254,14 @@ void ellipse(float a, float b, int i) {
     setpointY = b * sin(angle);
 }
 
+// figure-8 / lemniscate path
+// a controls the horizontal radius and b controls the full vertical height.
+void figureEight(float a, float b, int i) {
+    float angle = float(i)/pointsPerCycle * M_PI * 2;
+    setpointX = a * sin(angle);
+    setpointY = b * sin(angle) * cos(angle);
+}
+
 void line(float length, int i) {
   if (i < pointsPerCycle/2) {
     setpointX = index/length/2;
@@ -326,6 +334,17 @@ void updateSetpoint() {
         ellipse(15,10, index); // set setpoint to circle trajectory
         lastTrajectoryUpdateTime = time;
         index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1 
+        if (index > pointsPerCycle) {
+          index = 0;
+        }
+      }
+      break;
+    case 4:
+      // figure 8
+      if (dt > updateIncrement) {
+        figureEight(20, 15, index);
+        lastTrajectoryUpdateTime = time;
+        index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1
         if (index > pointsPerCycle) {
           index = 0;
         }
