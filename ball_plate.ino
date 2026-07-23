@@ -254,6 +254,20 @@ void ellipse(float a, float b, int i) {
     setpointY = b * sin(angle);
 }
 
+// setpoint draws a zigzag (sawtooth sweep in x, triangle wave in y)
+// the ball travels left-to-right across the plate while bouncing up and down.
+// w: half-width of sweep (mm), h: half-height of each zig (mm)
+// numZigs: how many up/down bounces per full left-to-right sweep
+void zigzag(float w, float h, int numZigs, int i) {
+  float t = float(i) / pointsPerCycle; // progress through cycle, 0..1
+  // x sweeps linearly from -w to +w across the cycle
+  setpointX = -w + 2 * w * t;
+  // y is a triangle wave: -h -> +h -> -h, repeated numZigs times
+  float phase = t * numZigs;
+  float frac = phase - floor(phase); // position within current zig, 0..1
+  setpointY = h * (1 - 4 * fabs(frac - 0.5)); // -h at ends, +h at midpoint
+}
+
 void line(float length, int i) {
   if (i < pointsPerCycle/2) {
     setpointX = index/length/2;
@@ -326,6 +340,17 @@ void updateSetpoint() {
         ellipse(15,10, index); // set setpoint to circle trajectory
         lastTrajectoryUpdateTime = time;
         index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1 
+        if (index > pointsPerCycle) {
+          index = 0;
+        }
+      }
+      break;
+    case 4:
+      // zigzag
+      if (dt > updateIncrement) {
+        zigzag(30, 15, 3, index); // sweep +/-30mm in x, +/-15mm bounces, 3 zigs per sweep
+        lastTrajectoryUpdateTime = time;
+        index+=int(round(dt/updateIncrement)); // if dt is more than the update time, then increments index by more than 1
         if (index > pointsPerCycle) {
           index = 0;
         }
