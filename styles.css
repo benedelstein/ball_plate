@@ -299,6 +299,37 @@ h2 em {
   font-size: 14px;
 }
 
+.papel-picado {
+  min-height: 72px;
+  padding: 0 2vw;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  align-items: start;
+  overflow: hidden;
+  background: var(--paper);
+  border-bottom: 1px solid var(--ink);
+}
+
+.papel-picado span {
+  height: 58px;
+  display: grid;
+  place-items: center;
+  color: var(--paper);
+  background: var(--coral);
+  clip-path: polygon(0 0, 100% 0, 100% 76%, 50% 100%, 0 76%);
+  font-family: var(--serif);
+  font-size: 22px;
+}
+
+.papel-picado span:nth-child(3n + 2) {
+  background: var(--blue);
+}
+
+.papel-picado span:nth-child(3n) {
+  color: var(--ink);
+  background: var(--yellow);
+}
+
 @keyframes ticker {
   to {
     transform: translateX(-50%);
@@ -357,6 +388,113 @@ h2 em {
   margin: 0 0 0 auto;
   font-size: 17px;
   line-height: 1.7;
+}
+
+.fiesta-notes {
+  color: var(--paper);
+  background: var(--coral);
+  border-bottom: 1px solid var(--ink);
+}
+
+.fiesta-heading {
+  max-width: 1050px;
+  margin-bottom: 70px;
+}
+
+.fiesta-heading h2 {
+  font-size: clamp(65px, 10vw, 155px);
+}
+
+.fiesta-heading h2 em {
+  color: var(--yellow);
+}
+
+.fiesta-subhead {
+  max-width: 520px;
+  margin: 35px 0 0 auto;
+  font-family: var(--serif);
+  font-size: clamp(22px, 2.5vw, 38px);
+  font-style: italic;
+  line-height: 1.2;
+}
+
+.fiesta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--ink);
+  border-left: 1px solid var(--ink);
+  box-shadow: 12px 12px 0 var(--ink);
+}
+
+.fiesta-card {
+  min-height: 430px;
+  padding: 34px;
+  position: relative;
+  color: var(--ink);
+  border-right: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.fiesta-card-taco {
+  background: var(--yellow);
+}
+
+.fiesta-card-tequila {
+  color: var(--paper);
+  background: var(--blue);
+}
+
+.fiesta-card-tortilla {
+  background: var(--pink);
+}
+
+.fiesta-icon {
+  width: 90px;
+  height: 90px;
+  margin: 0 0 65px auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 42px;
+  transform: rotate(7deg);
+}
+
+.fiesta-card-tequila .fiesta-icon {
+  color: var(--yellow);
+  font-size: 56px;
+}
+
+.tortilla-icon {
+  background:
+    radial-gradient(circle at 35% 32%, rgba(110, 65, 20, 0.3) 0 2px, transparent 3px),
+    radial-gradient(circle at 67% 62%, rgba(110, 65, 20, 0.25) 0 3px, transparent 4px),
+    radial-gradient(circle at 62% 26%, rgba(110, 65, 20, 0.2) 0 2px, transparent 3px),
+    #e7b85e;
+  color: #7d471f;
+}
+
+.fiesta-number {
+  margin-bottom: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.fiesta-card h3 {
+  margin-bottom: 20px;
+  font-family: var(--serif);
+  font-size: clamp(37px, 3.4vw, 54px);
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+}
+
+.fiesta-card > p:last-child {
+  max-width: 340px;
+  margin-bottom: 0;
+  font-size: 14px;
+  line-height: 1.65;
 }
 
 .weekend {
@@ -979,6 +1117,18 @@ footer > p {
     gap: 25px;
   }
 
+  .fiesta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fiesta-card {
+    min-height: 350px;
+  }
+
+  .fiesta-icon {
+    margin-bottom: 35px;
+  }
+
   .event-card {
     min-height: 460px;
     border-radius: 190px 190px 0 0;
@@ -1088,6 +1238,20 @@ footer > p {
     background-position: 54% center;
   }
 
+  .papel-picado {
+    min-height: 52px;
+    padding-inline: 0;
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .papel-picado span {
+    height: 45px;
+  }
+
+  .papel-picado span:nth-child(n + 6) {
+    display: none;
+  }
+
   .hero-copy {
     padding: 70px 24px 65px;
   }
@@ -1124,6 +1288,22 @@ footer > p {
 
   .display-copy {
     font-size: 42px;
+  }
+
+  .fiesta-heading {
+    margin-bottom: 50px;
+  }
+
+  .fiesta-heading h2 {
+    font-size: clamp(55px, 18vw, 82px);
+  }
+
+  .fiesta-subhead {
+    margin-left: 0;
+  }
+
+  .fiesta-grid {
+    box-shadow: 8px 8px 0 var(--ink);
   }
 
   .intro-copy > p:last-child {
