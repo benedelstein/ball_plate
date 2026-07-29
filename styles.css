@@ -444,6 +444,36 @@ h2 em {
   letter-spacing: -0.035em;
 }
 
+.fiesta-word {
+  position: relative;
+  display: inline-block;
+  color: var(--coral);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.fiesta-word::after {
+  content: "";
+  height: 8px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  background:
+    radial-gradient(circle at 4px -1px, transparent 5px, var(--coral) 6px, var(--coral) 7px, transparent 8px)
+    0 0 / 16px 8px repeat-x;
+}
+
+.fiesta-word-blue {
+  color: var(--blue);
+}
+
+.fiesta-word-blue::after {
+  background:
+    radial-gradient(circle at 4px -1px, transparent 5px, var(--blue) 6px, var(--blue) 7px, transparent 8px)
+    0 0 / 16px 8px repeat-x;
+}
+
 .intro-copy > p:last-child {
   max-width: 550px;
   margin: 0 0 0 auto;
