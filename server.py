@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import sqlite3
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -13,7 +14,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 PORT = int(os.environ.get("PORT", "8080"))
-RSVP_FILE = ROOT / "data" / "rsvps.ndjson"
+RSVP_DATABASE = Path(os.environ.get("RSVP_DATABASE", ROOT / "data" / "rsvps.sqlite3"))
+LEGACY_RSVP_FILE = ROOT / "data" / "rsvps.ndjson"
 
 ALLOWED_FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
@@ -22,6 +24,98 @@ ALLOWED_FILES = {
     "/script.js": ("script.js", "text/javascript; charset=utf-8"),
     "/assets/wedding-hero.png": ("assets/wedding-hero.png", "image/png"),
 }
+
+
+def connect_database() -> sqlite3.Connection:
+    RSVP_DATABASE.parent.mkdir(exist_ok=True)
+    connection = sqlite3.connect(RSVP_DATABASE, timeout=10)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA busy_timeout = 10000")
+    connection.execute("PRAGMA foreign_keys = ON")
+    return connection
+
+
+def initialize_database() -> None:
+    with connect_database() as connection:
+        connection.execute("PRAGMA journal_mode = WAL")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS rsvps (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                received_at INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                attending TEXT NOT NULL CHECK (
+                    attending IN ('joyfully-accepts', 'regretfully-declines')
+                ),
+                dietary TEXT NOT NULL DEFAULT '',
+                note TEXT NOT NULL DEFAULT ''
+            )
+            """
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_rsvps_received_at ON rsvps(received_at DESC)"
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS app_metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+            """
+        )
+
+        legacy_imported = connection.execute(
+            "SELECT 1 FROM app_metadata WHERE key = 'legacy_ndjson_imported'"
+        ).fetchone()
+        if legacy_imported or not LEGACY_RSVP_FILE.exists():
+            return
+
+        for line in LEGACY_RSVP_FILE.read_text(encoding="utf-8").splitlines():
+            try:
+                record = json.loads(line)
+                attending = record.get("attending")
+                if not record.get("name") or attending not in {
+                    "joyfully-accepts",
+                    "regretfully-declines",
+                }:
+                    continue
+                connection.execute(
+                    """
+                    INSERT INTO rsvps (received_at, name, attending, dietary, note)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        int(record.get("received_at", time.time())),
+                        str(record["name"])[:1000],
+                        attending,
+                        str(record.get("dietary", ""))[:1000],
+                        str(record.get("note", ""))[:1000],
+                    ),
+                )
+            except (json.JSONDecodeError, TypeError, ValueError):
+                continue
+
+        connection.execute(
+            "INSERT INTO app_metadata (key, value) VALUES ('legacy_ndjson_imported', ?)",
+            (str(int(time.time())),),
+        )
+
+
+def save_rsvp(fields: dict[str, str]) -> None:
+    with connect_database() as connection:
+        connection.execute(
+            """
+            INSERT INTO rsvps (received_at, name, attending, dietary, note)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                int(time.time()),
+                fields["name"],
+                fields["attending"],
+                fields.get("dietary", ""),
+                fields.get("note", ""),
+            ),
+        )
 
 
 class WeddingHandler(BaseHTTPRequestHandler):
@@ -97,16 +191,7 @@ class WeddingHandler(BaseHTTPRequestHandler):
                 self.send_bytes(b'{"message":"Please complete the required fields."}', "application/json", 400)
                 return
 
-            RSVP_FILE.parent.mkdir(exist_ok=True)
-            record = {
-                "received_at": int(time.time()),
-                "name": fields["name"],
-                "attending": fields["attending"],
-                "dietary": fields.get("dietary", ""),
-                "note": fields.get("note", ""),
-            }
-            with RSVP_FILE.open("a", encoding="utf-8") as output:
-                output.write(json.dumps(record, ensure_ascii=False) + "\n")
+            save_rsvp(fields)
             payload = json.dumps({"message": "RSVP received—thank you! We can’t wait to celebrate."}).encode()
             self.send_bytes(payload, "application/json")
             return
@@ -119,5 +204,6 @@ class WeddingHandler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     mimetypes.add_type("text/javascript", ".js")
+    initialize_database()
     print(f"Bendavid Black Boda Bonanza is serving on 0.0.0.0:{PORT}")
     ThreadingHTTPServer(("0.0.0.0", PORT), WeddingHandler).serve_forever()
