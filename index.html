@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Bob's Donuts — handmade Bay Area donuts, fresh every day since 1953." />
+    <meta name="theme-color" content="#f6a8bd" />
+    <title>Bob's Donuts — Fresh, Hot & Handmade</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Shrikhand&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="announcement">
+      <span class="spark">✦</span>
+      <span>Hot now, all day long</span>
+      <span class="announcement-dot"></span>
+      <span>Polk Street is open 24/7</span>
+      <span class="spark">✦</span>
+    </div>
+
+    <header class="site-header" id="top">
+      <a class="brand" href="#top" aria-label="Bob's Donuts home">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span class="brand-copy"><b>Bob's</b><small>Donuts &amp; Pastries</small></span>
+      </a>
+      <nav class="desktop-nav" aria-label="Main navigation">
+        <a href="#favorites">Menu</a>
+        <a href="#story">Our story</a>
+        <a href="#locations">Locations</a>
+      </nav>
+      <a class="pill-button header-order" href="https://www.bobsdonutssf.com/order" target="_blank" rel="noreferrer">Order online <span>↗</span></a>
+      <button class="menu-button" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open menu">
+        <span></span><span></span>
+      </button>
+      <nav class="mobile-menu" id="mobile-menu" aria-label="Mobile navigation">
+        <a href="#favorites">Menu</a><a href="#story">Our story</a><a href="#locations">Locations</a>
+        <a class="pill-button" href="https://www.bobsdonutssf.com/order" target="_blank" rel="noreferrer">Order online ↗</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <img class="hero-image" src="assets/bobs-donuts-hero.png" alt="A fresh spread of glazed, chocolate, powdered, and apple fritter donuts" />
+        <div class="hero-shade"></div>
+        <div class="hero-content">
+          <div class="eyebrow"><span></span> A San Francisco original since 1953</div>
+          <h1>Happiness,<br /><em>still warm.</em></h1>
+          <p>Handmade from scratch. Fried in small batches. Best enjoyed before you even make it home.</p>
+          <div class="hero-actions">
+            <a class="pill-button button-large" href="https://www.bobsdonutssf.com/order" target="_blank" rel="noreferrer">Get your donuts <span>↗</span></a>
+            <a class="text-link" href="#favorites">See what's fresh <span>↓</span></a>
+          </div>
+        </div>
+        <div class="hero-note" aria-hidden="true">
+          <span>Made fresh</span><b>Every day</b><span>in the Bay</span>
+        </div>
+        <div class="scroll-cue"><span></span>Scroll for the good stuff</div>
+      </section>
+
+      <div class="ticker" aria-hidden="true">
+        <div class="ticker-track">
+          <span>Handmade daily</span><i>●</i><span>Family owned</span><i>●</i><span>Fresh out the fryer</span><i>●</i><span>Bay Area born</span><i>●</i>
+          <span>Handmade daily</span><i>●</i><span>Family owned</span><i>●</i><span>Fresh out the fryer</span><i>●</i><span>Bay Area born</span><i>●</i>
+        </div>
+      </div>
+
+      <section class="favorites section" id="favorites">
+        <div class="section-heading reveal">
+          <div>
+            <div class="eyebrow coral"><span></span> The usual suspects</div>
+            <h2>Pick your <em>favorite.</em></h2>
+          </div>
+          <p>The classics you know, the cravings you can't shake. Every batch is made in-house, every day.</p>
+        </div>
+
+        <div class="filter-row reveal" role="group" aria-label="Filter the menu">
+          <button class="filter active" data-filter="all">All favorites</button>
+          <button class="filter" data-filter="raised">Raised</button>
+          <button class="filter" data-filter="cake">Cake &amp; pastry</button>
+          <button class="filter" data-filter="legend">Bob's legends</button>
+        </div>
+
+        <div class="menu-grid">
+          <article class="menu-card pink reveal" data-category="raised">
+            <div class="donut-art glaze" aria-hidden="true"><span class="shine"></span></div>
+            <div class="card-top"><span>01</span><span class="badge">The classic</span></div>
+            <div class="card-copy"><h3>Raised Glazed</h3><p>Cloud-soft, golden, and dipped in a crackly vanilla glaze.</p></div>
+          </article>
+          <article class="menu-card yellow reveal" data-category="legend">
+            <div class="fritter-art" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="card-top"><span>02</span><span class="badge">Fan favorite</span></div>
+            <div class="card-copy"><h3>Apple Fritter</h3><p>Craggy, caramelized, apple-packed—and gloriously oversized.</p></div>
+          </article>
+          <article class="menu-card blue reveal" data-category="raised">
+            <div class="donut-art chocolate" aria-hidden="true"><span class="sprinkle s1"></span><span class="sprinkle s2"></span><span class="sprinkle s3"></span><span class="sprinkle s4"></span><span class="sprinkle s5"></span></div>
+            <div class="card-top"><span>03</span><span class="badge">Crowd pleaser</span></div>
+            <div class="card-copy"><h3>Choc Sprinkles</h3><p>A fluffy raised ring under glossy chocolate and confetti crunch.</p></div>
+          </article>
+          <article class="menu-card cream reveal" data-category="cake">
+            <div class="roll-art" aria-hidden="true"><span></span></div>
+            <div class="card-top"><span>04</span><span class="badge">Morning hero</span></div>
+            <div class="card-copy"><h3>Cinnamon Roll</h3><p>Buttery spirals, warm spice, and ribbons of sweet glaze.</p></div>
+          </article>
+          <article class="menu-card mint reveal" data-category="raised">
+            <div class="bar-art" aria-hidden="true"><span></span></div>
+            <div class="card-top"><span>05</span><span class="badge">Old school</span></div>
+            <div class="card-copy"><h3>Maple Bar</h3><p>Pillowy dough with a generous sweep of maple frosting.</p></div>
+          </article>
+          <article class="menu-card orange reveal" data-category="legend">
+            <div class="giant-art" aria-hidden="true"><span class="shine"></span></div>
+            <div class="card-top"><span>06</span><span class="badge">The big one</span></div>
+            <div class="card-copy"><h3>Giant Donut</h3><p>A celebration-sized Bob's legend. Bring friends—or don't.</p></div>
+          </article>
+        </div>
+        <div class="center reveal"><a class="outline-button" href="https://www.bobsdonutssf.com/menu" target="_blank" rel="noreferrer">Explore the full menu <span>↗</span></a></div>
+      </section>
+
+      <section class="story" id="story">
+        <div class="story-photo reveal" role="img" aria-label="Close-up of handmade glazed donuts and an apple fritter">
+          <div class="stamp"><span>Bay Area</span><b>Bob's</b><span>Since 1953</span></div>
+        </div>
+        <div class="story-copy reveal">
+          <div class="eyebrow"><span></span> Nothing fancy, just good</div>
+          <h2>Made by hand.<br /><em>Made with heart.</em></h2>
+          <p class="lead">Bob's started as a small neighborhood donut shop on Polk Street. More than seven decades later, we're still family-owned, still independent, and still making every donut from scratch.</p>
+          <p>That means early mornings, well-loved recipes, and a fryer that rarely rests. It's not the fastest way to make a donut—but you can taste why it's the right one.</p>
+          <div class="story-stats">
+            <div><strong>70+</strong><span>years in the Bay</span></div>
+            <div><strong>3</strong><span>neighborhood shops</span></div>
+            <div><strong>∞</strong><span>reasons to stop by</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="challenge section">
+        <div class="challenge-card reveal">
+          <div class="challenge-copy">
+            <div class="eyebrow light"><span></span> Feeling brave?</div>
+            <h2>Meet the<br /><em>Big Donut.</em></h2>
+            <p>It's roughly the size of your head and famous across San Francisco. Take on the challenge or share it with the table—we won't judge.</p>
+            <a class="pill-button cream-button" href="https://www.bobsdonutssf.com/hall-of-fame" target="_blank" rel="noreferrer">Visit the hall of fame <span>↗</span></a>
+          </div>
+          <div class="challenge-visual" aria-hidden="true">
+            <div class="orbit orbit-one">Big • Bold • Bob's •</div>
+            <div class="big-donut"><span></span></div>
+            <div class="challenge-sticker"><b>Are you<br />ready?</b></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="locations section" id="locations">
+        <div class="section-heading reveal">
+          <div>
+            <div class="eyebrow coral"><span></span> Come say hi</div>
+            <h2>Find your <em>Bob's.</em></h2>
+          </div>
+          <p>Three neighborhood shops. Same scratch-made goodness. Pick the one closest to your craving.</p>
+        </div>
+        <div class="location-grid">
+          <article class="location-card featured reveal" data-location="polk">
+            <div class="location-number">01</div>
+            <div class="location-status"><span></span><b data-status>Open 24 hours</b></div>
+            <h3>Polk Street</h3>
+            <p>1720 Polk Street<br />San Francisco, CA</p>
+            <div class="hours"><span>Daily</span><b>Open 24 hours</b></div>
+            <a href="https://maps.google.com/?q=1720+Polk+Street+San+Francisco+CA" target="_blank" rel="noreferrer">Get directions <span>↗</span></a>
+          </article>
+          <article class="location-card reveal" data-location="baker">
+            <div class="location-number">02</div>
+            <div class="location-status"><span></span><b data-status>Open today</b></div>
+            <h3>Baker Street</h3>
+            <p>601 Baker Street<br />San Francisco, CA</p>
+            <div class="hours"><span>Mon–Fri</span><b>6am–9pm</b><span>Sat–Sun</span><b>7am–9pm</b></div>
+            <a href="https://maps.google.com/?q=601+Baker+Street+San+Francisco+CA" target="_blank" rel="noreferrer">Get directions <span>↗</span></a>
+          </article>
+          <article class="location-card reveal" data-location="mill-valley">
+            <div class="location-number">03</div>
+            <div class="location-status"><span></span><b data-status>Open today</b></div>
+            <h3>Mill Valley</h3>
+            <p>252 Almonte Boulevard<br />Mill Valley, CA</p>
+            <div class="hours"><span>Every day</span><b>6am–6pm</b></div>
+            <a href="https://maps.google.com/?q=252+Almonte+Boulevard+Mill+Valley+CA" target="_blank" rel="noreferrer">Get directions <span>↗</span></a>
+          </article>
+        </div>
+      </section>
+
+      <section class="cta section">
+        <div class="cta-inner reveal">
+          <div class="tiny-donut d-one" aria-hidden="true"></div><div class="tiny-donut d-two" aria-hidden="true"></div>
+          <p>Your next favorite donut is waiting.</p>
+          <h2>Let's make today<br /><em>a little sweeter.</em></h2>
+          <a class="pill-button button-large" href="https://www.bobsdonutssf.com/order" target="_blank" rel="noreferrer">Order for pickup <span>↗</span></a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-main">
+        <a class="brand footer-brand" href="#top"><span class="brand-mark"><span></span></span><span class="brand-copy"><b>Bob's</b><small>Donuts &amp; Pastries</small></span></a>
+        <p>Handmade in the Bay Area<br />since way back when.</p>
+        <div class="footer-links"><a href="#favorites">Menu</a><a href="#story">Our story</a><a href="#locations">Locations</a><a href="https://www.bobsdonutssf.com/store" target="_blank" rel="noreferrer">Merch ↗</a></div>
+        <div class="footer-social"><span>Follow along</span><a href="https://www.instagram.com/bobsdonuts/" target="_blank" rel="noreferrer">Instagram ↗</a></div>
+      </div>
+      <div class="footer-bottom"><span>© <span id="year"></span> Bob's Donuts</span><span>Built with a hole lotta love.</span></div>
+    </footer>
+    <script src="script.js"></script>
+  </body>
+</html>
